@@ -10,15 +10,19 @@ itemRecipes=[[]]*len(raws)+[[i] for i in range(len(raws))]*len(processed)+[[15,1
 itemRecipeQuantities=[[1]]*len(raws)*(1+len(processed))+[[2,1],[2,1],[1,1,1],[1,1,1],[2,2],[2,2,1],[4,1],[1,4],[1,1,1],[1,1,1],[1,1,1],[1,2,2],[1,2,1],[1,1,1],[2,2],[2,2,1],[1,3,3],[2,4,4],[1,1,1],[4,4,4],[1,1,4],[1,1,2],[1,1,6],[1,1,4],[1,5,5],[10,10],[2,1,2],[20,10],[1,1,6],[4,5,5],[5,5,5],[2,2,4],[20,6,6],[10,10,10],[6,10,6],[50,50],[15,50,40],[30,10],[40,10],[4,40],[400,1,1],[1,200],[1,1]]
 itemPrices=[80]*len(raws)+[100]*len(raws)*(len(processed)-1)+[250]*len(raws)+[300,360,360,360,360,540,540,600,900,900,1050,1100,1170,1300,1320,1500,1920,3300,5670,6920,7100,7300,7400,7600,8070,8400,10170,10600,11000,11820,12900,17220,27000,27300,31800,70000,470000,550000,900000,2500000,2800000,5000000,15000000]
 itemResourceCosts=[]
+itemSpaceCosts=[]
 itemStarterUpperBounds=[]
 specificResourceCosts=[]
 itemFractions=[]
 for i in range(len(itemRecipes)):
     if itemMachines[i]==0:
         itemResourceCosts.append(1)
+        itemSpaceCosts.append(1/3)
         specificResourceCosts.append([int(k==i) for k in range(len(raws))])
     else:
+        recipeSum=sum([itemRecipeQuantities[i][j] if itemMachines[itemRecipes[i][j]]==0 else math.ceil(itemRecipeQuantities[i][j]/3) for j in range(len(itemRecipes[i]))])
         itemResourceCosts.append(sum([itemRecipeQuantities[i][j]*itemResourceCosts[itemRecipes[i][j]] for j in range(len(itemRecipes[i]))]))
+        itemSpaceCosts.append(1+(2/3 if itemMachines[i]!=5 else sum([itemRecipeQuantities[i][j]*itemSpaceCosts[itemRecipes[i][j]]+(itemMachines[itemRecipes[i][j]]==0)*(itemRecipeQuantities[i][j]%3)/3 for j in range(len(itemRecipes[i]))])+int(recipeSum>3)*math.ceil((recipeSum-3)/2))) #A single raw item in a recipe requires 1/3rd of a splitter and starter, two require 2/3rds of each (because three require two of each), three requires a splitter and no starters, so splitter cost is (raws%3)/3. In the upper bound case, if an item requires more than 3 ingredients, there are no optimisations where two items' excess rollers can be substituted for a single two-way splitter, because it would require having one input per output, while rollers need at least two to be worth having. If an item has raw materials in its recipe, it can use four inputs instead of three and output to the starter (to be picked up by a robot arm) but this requires 1/2 seconds output rate and uses an additional square regardless, so doesn't need to be considered in upper limits
         specificResourceCosts.append([sum([itemRecipeQuantities[i][j]*specificResourceCosts[itemRecipes[i][j]][k] for j in range(len(itemRecipes[i]))]) for k in range(len(raws))])
     multipleOfThree=0
     m=0
@@ -61,8 +65,11 @@ for i in range(len(itemRecipes)):
         itemFractions.append([int(j/gcd) for j in fraction])
     else:
         itemFractions.append([0,1])
-
     itemStarterUpperBounds.append([3*56/itemResourceCosts[i],upperBound])
+    cellSecondsPerItem=0 #cells/(items/second)=cells*seconds/item
+
+def itemReport(i,recipe,value,cost,specific,starterUpperBound):
+    print(i, items[i]+recipe*(": "+str([str(itemRecipeQuantities[i][j])+" "+items[itemRecipes[i][j]] for j in range(len(itemRecipes[i]))])+" in "+machineNames[itemMachines[i]])+value*(", value: "+str(itemPrices[i]))+cost*(", cost: "+str(itemResourceCosts[i]))+specific*(", specific: "+str(specificResourceCosts[i]))+starterUpperBound*(", starter upper bound: "+unitToDisplay))
 
 for i in range(len(itemRecipes)):
     itemFractions[i][0]+=math.floor(itemStarterUpperBounds[i][1])*itemFractions[i][1]
@@ -78,5 +85,5 @@ for i in range(len(itemRecipes)):
         unitToDisplay+=" seconds/"+items[i]
     else:
         unitToDisplay+=" "+items[i]+"s/second"
-    #print(i, items[i]+":",[str(itemRecipeQuantities[i][j])+" "+items[itemRecipes[i][j]] for j in range(len(itemRecipes[i]))],"in "+machineNames[itemMachines[i]]+", value: "+str(itemPrices[i])+", cost: "+str(itemResourceCosts[i])+", specific: "+str(specificResourceCosts[i])+", starter upper bound: "+unitToDisplay)
-    print(unitToDisplay)
+    itemReport(i,0,0,0,0,1)
+    print(256/(itemSpaceCosts[i]+1/4))
