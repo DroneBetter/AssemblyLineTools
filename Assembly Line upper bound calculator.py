@@ -12,6 +12,7 @@ itemPrices=[80]*len(raws)+[100]*len(raws)*(len(processed)-1)+[250]*len(raws)+[30
 itemResourceCosts=[]
 itemStarterUpperBounds=[]
 specificResourceCosts=[]
+itemFractions=[]
 for i in range(len(itemRecipes)):
     if itemMachines[i]==0:
         itemResourceCosts.append(1)
@@ -33,6 +34,7 @@ for i in range(len(itemRecipes)):
     if typesInItem<=remainingStarters:
         remainingStarters-=typesInItem
         remainingCosts=[k-3*int(k>0) for k in specificResourceCosts[i]]
+        bottleneckValue=1
         while remainingStarters>=0:
             bottleneckSet=0
             bottleneckIndex=0
@@ -44,6 +46,7 @@ for i in range(len(itemRecipes)):
                         bottleneckSet=1
                         bottleneckIndex=k
                         bottleneckValue=value
+                        fraction=[specificResourceCosts[i][k]-remainingCosts[k],specificResourceCosts[i][k]]
             if bottleneckValue<=0:
                 upperBound+=1
                 for k in range(len(remainingCosts)):
@@ -54,7 +57,26 @@ for i in range(len(itemRecipes)):
                         remainingCosts[bottleneckIndex]-=3
                     remainingStarters-=1
         upperBound+=1-bottleneckValue
+        gcd=math.gcd(fraction[0],fraction[1])
+        itemFractions.append([int(j/gcd) for j in fraction])
+    else:
+        itemFractions.append([0,1])
+
     itemStarterUpperBounds.append([3*56/itemResourceCosts[i],upperBound])
 
 for i in range(len(itemRecipes)):
-    print(i, items[i]+":",[str(itemRecipeQuantities[i][j])+" "+items[itemRecipes[i][j]] for j in range(len(itemRecipes[i]))],"in "+machineNames[itemMachines[i]]+", value: "+str(itemPrices[i])+", cost: "+str(itemResourceCosts[i])+", specific: "+str(specificResourceCosts[i])+", starter upper bound:",itemStarterUpperBounds[i])
+    itemFractions[i][0]+=math.floor(itemStarterUpperBounds[i][1])*itemFractions[i][1]
+    fractionsMode=int(itemFractions[i][1]>1)
+    if fractionsMode==1:
+        unitToDisplay=str(itemFractions[i][0])+"/"+str(itemFractions[i][1])
+    else:
+        unitToDisplay=int(itemStarterUpperBounds[i][1])
+        if itemStarterUpperBounds[i][1]<1:
+            unitToDisplay=1/unitToDisplay
+        unitToDisplay=str(unitToDisplay)
+    if fractionsMode==0 and itemStarterUpperBounds[i][1]<1:
+        unitToDisplay+=" seconds/"+items[i]
+    else:
+        unitToDisplay+=" "+items[i]+"s/second"
+    #print(i, items[i]+":",[str(itemRecipeQuantities[i][j])+" "+items[itemRecipes[i][j]] for j in range(len(itemRecipes[i]))],"in "+machineNames[itemMachines[i]]+", value: "+str(itemPrices[i])+", cost: "+str(itemResourceCosts[i])+", specific: "+str(specificResourceCosts[i])+", starter upper bound: "+unitToDisplay)
+    print(unitToDisplay)
